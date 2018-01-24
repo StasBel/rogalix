@@ -1,64 +1,40 @@
 package ru.spbau.mit.strategy
 
-import ru.spbau.mit.console.Console.getCh
-import ru.spbau.mit.game.Game
-import ru.spbau.mit.game.GameInputMode
-import ru.spbau.mit.map.Map
-import ru.spbau.mit.world.Creature
-import ru.spbau.mit.world.Move
-import ru.spbau.mit.world.World
+import ru.spbau.mit.basic.Creature
+import ru.spbau.mit.basic.Item
+import ru.spbau.mit.basic.Pt
+import ru.spbau.mit.main.World
 
 /**
- * An implementation of player strategy which reading keyboard input
- * and convert it to instances of [Action] class.
- * @author belaevstanislav
+ * Simple kb reading strategy.
+ *
+ * @author Stanislav Belyaev stasbelyaev96@gmail.com
  */
-class PlayerStrategy : Strategy {
+class PlayerStrategy(private val getCh: () -> Char) : Strategy {
     /**
-     * Some useful reader params.
+     * Choose action for act.
+     * Here, we read chars from keyboard and transform them into action.
+     *
+     * @receiver An instance of [World], visibleWorld by [self].
+     * @param self An instance of [Creature] - center unit to act. Other world is just a
+     * visible world from his point of view.
      */
-    private object ReaderParams {
-        val QUIT_CHAR = setOf(
-                'q',
-                'Q',
-                27.toChar() // ESC
-        )
-    }
+    override fun World.chooseAction(self: Creature): Action {
+        fun Set<Item>.findBy(c: Char): Item? = firstOrNull { it.name.repr == c }
 
-    /**
-     * Reading keyboard input while we cant parse an Action from it.
-     * @param self an instance of [Creature] to act
-     * @param world an instance of [World] to observe
-     * @param map an instance of [Map] using to work with mark
-     * @param game an instance of [Game] using to get some consts
-     * @return an instance of [Action] as a result of doing strategy
-     */
-    override fun act(self: Creature, world: World, map: Map, game: Game): Action {
-        fun nextChar(): Char =
-                if (game.gameInputMode == GameInputMode.BLOCKING) {
-                    readLine()!![0]
-                } else {
-                    getCh()
-                }
-
-        fun readAction(): Action =
-                when (nextChar()) {
-                    in ReaderParams.QUIT_CHAR -> Action.ForceQuit()
-                    'n' -> Action.Nothing()
-                    'w' -> Action.Move(Move.UP)
-                    'a' -> Action.Move(Move.LEFT)
-                    's' -> Action.Move(Move.DOWN)
-                    'd' -> Action.Move(Move.RIGHT)
-                    'h' -> Action.Move(Move.HOLD)
-                    in setOf('i', 't') -> {
-                        val num = nextChar()
-                        when (num) {
-                            in '0'..'9' -> Action.ToggleItem(self.items.getItem(num - '0'))
-                            else -> readAction()
-                        }
-                    }
-                    else -> readAction()
-                }
+        tailrec fun readAction(): Action = when (getCh()) {
+            'q' -> Action.ForceQuit
+            'h' -> Action.Move(Pt.Move.HOLD)
+            'w' -> Action.Move(Pt.Move.UP)
+            'd' -> Action.Move(Pt.Move.RIGHT)
+            's' -> Action.Move(Pt.Move.DOWN)
+            'a' -> Action.Move(Pt.Move.LEFT)
+            'p' -> self.equip.stored.findBy(getCh())?.let { Action.PutOnItem(it) } ?: readAction()
+            't' -> self.equip.used.findBy(getCh())?.let { Action.TakeOffItem(it as Item.Gear) }
+                    ?: readAction()
+            'f' -> self.equip.stored.findBy(getCh())?.let { Action.DropItem(it) } ?: readAction()
+            else -> readAction()
+        }
 
         return readAction()
     }
