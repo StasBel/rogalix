@@ -1,55 +1,53 @@
 package ru.spbau.mit.strategy
 
-import ru.spbau.mit.game.Game
-import ru.spbau.mit.map.CellType
-import ru.spbau.mit.map.Map
-import ru.spbau.mit.world.Creature
-import ru.spbau.mit.world.CreatureStatus
-import ru.spbau.mit.world.Move
-import ru.spbau.mit.world.World
+import ru.spbau.mit.basic.Creature
+import ru.spbau.mit.basic.Pt
+import ru.spbau.mit.basic.Unit
+import ru.spbau.mit.env.Env
+import ru.spbau.mit.main.World
+import java.util.*
 
 /**
- * Simple mob strategy moving straight to seeing enemy.
- * @author belaevstanislav
+ * Mob strategy to attack and pick items.
+ * Has to advance it later.
+ *
+ * @author Stanislav Belyaev stasbelyaev96@gmail.com
  */
 class MobStrategy : Strategy {
     /**
-     * Doing a simple act of moving straight to first enemy.
-     * @param self an instance of [Creature] to act
-     * @param world an instance of [World] to observe
-     * @param map an instance of [Map] using to work with mark
-     * @param game an instance of [Game] using to get some consts
-     * @return an instance of [Action] as a result of doing strategy
+     * Choose action for act.
+     * Here, we read chars from keyboard and transform them into action.
+     *
+     * @receiver An instance of [World], visibleWorld by [self].
+     * @param self An instance of [Creature] - center unit to act. Other world is just a
+     * visible world from his point of view.
      */
-    override fun act(self: Creature, world: World, map: Map, game: Game): Action {
-        return world.creatures.filter {
-            c ->
-            (c.creatureType != self.creatureType)
-                    .and(c.status == CreatureStatus.ALIVE)
-        }.firstOrNull()?.let {
-            val xM: Move = (self.pos.x - it.pos.x).let {
-                if (it < 0) {
-                    Move.DOWN
-                } else if (it == 0) {
-                    Move.HOLD
-                } else {
-                    Move.UP
-                }
-            }
-            if (xM == Move.HOLD || map.getCellType(self.pos + xM.delta) == CellType.WALL) {
-                val yM: Move = (self.pos.y - it.pos.y).let {
-                    if (it < 0) {
-                        Move.RIGHT
-                    } else if (it == 0) {
-                        Move.HOLD
-                    } else {
-                        Move.LEFT
-                    }
-                }
-                return Action.Move(yM)
-            } else {
-                return Action.Move(xM)
-            }
-        } ?: Action.Nothing()
+    override fun World.chooseAction(self: Creature): Action {
+        val target = zoo.creatures.firstOrNull { it::class != self::class }
+                ?: zoo.items.firstOrNull()
+                ?: return Action.Move(Pt.Move.HOLD)
+        val action = moveTo(self, target)
+        return if (self.params.hp < 20) Action.Move(action.move.opposite())
+        else action
     }
+
+    private fun World.moveTo(self: Creature, target: Unit): Action.Move {
+        val delta = self.pos - target.pos
+        val valid: (Pt) -> Boolean = { env[it] == Env.Tile.FLOOR }
+
+        if (Random().nextBoolean()) return Action.Move(Pt.Move.HOLD)  // Introduce eps-greedy move.
+
+        if (delta.x != 0) {
+            if ((delta.x > 0) and valid(self.pos + Pt.Move.LEFT)) return Action.Move(Pt.Move.LEFT)
+            if ((delta.x < 0) and valid(self.pos + Pt.Move.RIGHT)) return Action.Move(Pt.Move.RIGHT)
+        }
+
+        if (delta.y != 0) {
+            if ((delta.y > 0) and valid(self.pos + Pt.Move.UP)) return Action.Move(Pt.Move.UP)
+            if ((delta.y < 0) and valid(self.pos + Pt.Move.DOWN)) return Action.Move(Pt.Move.DOWN)
+        }
+
+        return Action.Move(Pt.Move.HOLD)
+    }
+
 }

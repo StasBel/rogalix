@@ -1,29 +1,36 @@
 package ru.spbau.mit.strategy
 
-import ru.spbau.mit.world.Item
+import ru.spbau.mit.basic.Item
+import ru.spbau.mit.basic.Pt
 
 /**
- * A sealed class of creature actions.
- * @author belaevstanislav
+ * Action to perform by actor.
+ *
+ * @author Stanislav Belyaev stasbelyaev96@gmail.com
  */
 sealed class Action {
     /**
-     * Force quitting initialize by user.
+     * Force quitting.
      */
-    class ForceQuit : Action()
+    object ForceQuit : Action()
 
     /**
-     * Doing nothing action.
+     * Moving.
      */
-    class Nothing : Action()
+    class Move(val move: Pt.Move) : Action()
 
     /**
-     * An action of moving.
+     * Putting item on.
      */
-    class Move(val move: ru.spbau.mit.world.Move) : Action()
+    class PutOnItem(val item: Item) : Action()
 
     /**
-     * An action of toggling an item.
+     * Taking item off.
      */
-    class ToggleItem(val item: Item) : Action()
+    class TakeOffItem(val item: Item.Gear) : Action()
+
+    /**
+     * Dropping item.
+     */
+    class DropItem(val item: Item) : Action()
 }
